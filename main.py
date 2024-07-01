@@ -19,7 +19,7 @@ RED = (255, 0, 0)
 BLOCK_SIZE = 30
 GRID_WIDTH = 10
 GRID_HEIGHT = 20
-SCREEN_WIDTH = BLOCK_SIZE * (GRID_WIDTH + 6)
+SCREEN_WIDTH = BLOCK_SIZE * (GRID_WIDTH+6)
 SCREEN_HEIGHT = BLOCK_SIZE * GRID_HEIGHT
 
 
@@ -35,7 +35,7 @@ SHAPES = [
 
 SHAPE_COLORS = [CYAN, YELLOW, PURPLE, BLUE, ORANGE, GREEN, RED]
 
-class shape:
+class Shape:
     def __init__(self, x, y):
         self.x = x
         self.y = y
@@ -43,9 +43,41 @@ class shape:
         self.color = SHAPE_COLORS[SHAPES.index(self.shape)]
         self.rotation = 0
 
-    def rotate(self):
-        self.rotation = (self.rotation + 1) % len(self.shape)
-        self.shape = list(zip(*self.shape[::-1]))
+    def rotate(self, grid):
+        rotated_shape = self.rotate_shape(self.shape)
+        kick_x = 0
+        if not self.check_collision(grid, kick_x, 0, rotated_shape):
+            self.shape = rotated_shape
+        elif not self.check_collision(grid, 1, 0, rotated_shape):
+            self.shape = rotated_shape
+            self.x += 1
+        elif not self.check_collision(grid, -1, 0, rotated_shape):
+            self.shape = rotated_shape
+            self.x -= 1
+        elif not self.check_collision(grid, 2, 0, rotated_shape):
+            self.shape = rotated_shape
+            self.x += 2
+        elif not self.check_collision(grid, -2, 0, rotated_shape):
+            self.shape = rotated_shape
+            self.x -= 2
+
+    def rotate_shape(self, shape):
+        return [list(row) for row in zip(*shape[::-1])]
+
+    def check_collision(self, grid, dx=0, dy=0, shape=None):
+        if shape is None:
+            shape = self.shape
+        for i, row in enumerate(shape):
+            for j, cell in enumerate(row):
+                if cell:
+                    new_x = self.x + j + dx
+                    new_y = self.y + i + dy
+                    if (new_x < 0 or new_x >= GRID_WIDTH or
+                        new_y >= GRID_HEIGHT or
+                        (new_y >= 0 and grid[new_y][new_x] != BLACK)):
+                        return True
+        return False
+
 
 class TetrisGame:
     def __init__(self):
@@ -59,17 +91,10 @@ class TetrisGame:
         self.font = pygame.font.Font(None, 36)
 
     def new_piece(self):
-        return shape(GRID_WIDTH // 2 - 1, 0)
+        return Shape(GRID_WIDTH // 2 - 1, 0)
 
     def valid_move(self, piece, x, y):
-        for i, row in enumerate(piece.shape):
-            for j, cell in enumerate(row):
-                if cell:
-                    if (x + j < 0 or x + j >= GRID_WIDTH or
-                        y + i >= GRID_HEIGHT or
-                        (y + i >= 0 and self.grid[y + i][x + j] != BLACK)):
-                        return False
-        return True
+        return not piece.check_collision(self.grid, x - piece.x, y - piece.y)
 
     def add_to_grid(self, piece):
         for i, row in enumerate(piece.shape):
@@ -102,7 +127,7 @@ class TetrisGame:
 
     def draw_score(self):
         score_text = self.font.render(f"Score: {self.score}", True, WHITE)
-        self.screen.blit(score_text, (GRID_WIDTH * BLOCK_SIZE + 10, 10))
+        self.screen.blit(score_text, (GRID_WIDTH * BLOCK_SIZE +4, 10))
 
     def draw_game_over(self):
         game_over_text = self.font.render("GAME OVER", True, RED)
@@ -129,11 +154,7 @@ class TetrisGame:
                         if self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y + 1):
                             self.current_piece.y += 1
                     if event.key == pygame.K_UP:
-                        self.current_piece.rotate()
-                        if not self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y):
-                            self.current_piece.rotate()
-                            self.current_piece.rotate()
-                            self.current_piece.rotate()
+                        self.current_piece.rotate(self.grid)
 
             if fall_time / 1000 > fall_speed:
                 if self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y + 1):
@@ -143,7 +164,7 @@ class TetrisGame:
                     lines_cleared = self.clear_lines()
                     self.score += lines_cleared * 100
                     self.current_piece = self.new_piece()
-                    if not self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y):
+                    if self.current_piece.check_collision(self.grid):
                         self.game_over = True
                 fall_time = 0
 
