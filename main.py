@@ -130,4 +130,37 @@ class TetrisGame:
                             self.current_piece.y += 1
                     if event.key == pygame.K_UP:
                         self.current_piece.rotate()
-                        
+                        if not self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y):
+                            self.current_piece.rotate()
+                            self.current_piece.rotate()
+                            self.current_piece.rotate()
+
+            if fall_time / 1000 > fall_speed:
+                if self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y + 1):
+                    self.current_piece.y += 1
+                else:
+                    self.add_to_grid(self.current_piece)
+                    lines_cleared = self.clear_lines()
+                    self.score += lines_cleared * 100
+                    self.current_piece = self.new_piece()
+                    if not self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y):
+                        self.game_over = True
+                fall_time = 0
+
+            self.screen.fill(BLACK)
+            self.draw_grid()
+            self.draw_piece(self.current_piece)
+            self.draw_score()
+            if self.game_over:
+                self.draw_game_over()
+            pygame.display.flip()
+
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return
+
+if __name__ == "__main__":
+    game = TetrisGame()
+    game.run()
+    pygame.quit()
