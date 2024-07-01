@@ -203,5 +203,83 @@ class TetrisAI:
             best_actions = [action for action, q in zip(actions, q_values) if q == max_q]
             return random.choice(best_actions)
 
+    def get_q_value(self, state, action):
+        return self.q_table.get((state, action), 0.0)
+
+    def update_q_value(self, state, action, reward, next_state, next_actions):
+        current_q = self.get_q_value(state, action)
+        if next_actions:
+            max_next_q = max(self.get_q_value(next_state, next_action) for next_action in next_actions)
+        else:
+            max_next_q = 0
+        new_q = current_q + self.alpha * (reward + self.gamma * max_next_q - current_q)
+        self.q_table[(state, action)] = new_q
+
+    def train(self, game, episodes=1000):
+        for episode in range(episodes):
+            game.__init__()
+            game.ai_mode = True
+            state = self.get_state(game)
+            total_reward = 0
+
+            while not game.game_over:
+                actions = self.get_actions(game)
+                action = self.choose_action(state, actions)
+
+                rotation, x = action
+                game.current_piece.x = x
+                for _ in range(rotation):
+                    game.current_piece.rotate(game.grid)
+
+                while not game.current_piece.check_collision(game.grid, 0, 1):
+                    game.current_piece.y += 1
+
+                game.add_to_grid(game.current_piece)
+                lines_cleared = game.clear_lines()
+                reward = lines_cleared * 100
+                total_reward += reward
+
+                next_state = self.get_state(game)
+                next_actions = self.get_actions(game)
+
+                self.update_q_value(state, action, reward, next_state, next_actions)
+
+                state = next_state
+                game.current_piece = game.new_piece()
+
+                if game.current_piece.check_collision(game.grid):
+                    game.game_over = True
+
+
+                game.screen.fill(BLACK)
+                game.draw_grid()
+                game.draw_piece(game.current_piece)
+                game.draw_score()
+                game.draw_ai_stats()
+                pygame.display.flip()
+                game.clock.tick(60)
+
+            game.game_count += 1
+            game.total_score += total_reward
+            print(f"Episode {episode + 1}, Score: {total_reward}")
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return
+
+    def play(self, game):
+        state = self.get_state(game)
+        actions = self.get_actions(game)
+        return self.choose_action(state, actions)
+
+if __name__ == "__main__":
+    game = TetrisGame()
+    ai = TetrisAI()
+
+
+    ai.train(game, episodes=100)
+
+
+    game.run_ai(ai)
 
     pygame.quit()
