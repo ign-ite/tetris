@@ -122,8 +122,86 @@ class TetrisGame:
         score_text = self.font.render(f"Score: {self.score}", True, WHITE)
         self.screen.blit(score_text, (GRID_WIDTH * BLOCK_SIZE + 10, 10))
 
-    
+    def draw_ai_stats(self):
+        game_count_text = self.font.render(f"Games: {self.game_count}", True, WHITE)
+        avg_score_text = self.font.render(f"Avg Score: {self.total_score // max(1, self.game_count)}", True, WHITE)
+        self.screen.blit(game_count_text, (GRID_WIDTH * BLOCK_SIZE + 10, 50))
+        self.screen.blit(avg_score_text, (GRID_WIDTH * BLOCK_SIZE + 10, 90))
 
+    def draw_game_over(self):
+        game_over_text = self.font.render("GAME OVER", True, RED)
+        self.screen.blit(game_over_text, (GRID_WIDTH * BLOCK_SIZE // 2 - 50, GRID_HEIGHT * BLOCK_SIZE // 2))
+
+    def run_ai(self, ai):
+        self.ai_mode = True
+        while True:
+            self.__init__()
+            self.ai_mode = True
+            while not self.game_over:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        return
+
+                action = ai.play(self)
+                rotation, x = action
+                self.current_piece.x = x
+                for _ in range(rotation):
+                    self.current_piece.rotate(self.grid)
+
+                while not self.current_piece.check_collision(self.grid, 0, 1):
+                    self.current_piece.y += 1
+
+                self.add_to_grid(self.current_piece)
+                lines_cleared = self.clear_lines()
+                self.score += lines_cleared * 100
+
+                self.current_piece = self.new_piece()
+                if self.current_piece.check_collision(self.grid):
+                    self.game_over = True
+
+                self.screen.fill(BLACK)
+                self.draw_grid()
+                self.draw_piece(self.current_piece)
+                self.draw_score()
+                self.draw_ai_stats()
+                pygame.display.flip()
+                self.clock.tick(30)
+
+            self.game_count += 1
+            self.total_score += self.score
+            pygame.time.wait(1000)
+
+class TetrisAI:
+    def __init__(self, epsilon=0.1, alpha=0.1, gamma=0.9):
+        self.epsilon = epsilon
+        self.alpha = alpha
+        self.gamma = gamma
+        self.q_table = {}
+
+    def get_state(self, game):
+        return tuple(map(tuple, game.grid))
+
+    def get_actions(self, game):
+        actions = []
+        piece = game.current_piece
+        for rotation in range(4):
+            for x in range(GRID_WIDTH):
+                test_piece = Shape(x, 0)
+                test_piece.shape = piece.shape
+                for _ in range(rotation):
+                    test_piece.rotate(game.grid)
+                if not test_piece.check_collision(game.grid):
+                    actions.append((rotation, x))
+        return actions
+
+    def choose_action(self, state, actions):
+        if random.random() < self.epsilon:
+            return random.choice(actions)
+        else:
+            q_values = [self.get_q_value(state, action) for action in actions]
+            max_q = max(q_values)
+            best_actions = [action for action, q in zip(actions, q_values) if q == max_q]
+            return random.choice(best_actions)
 
 
     pygame.quit()
