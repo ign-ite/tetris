@@ -104,6 +104,25 @@ class TetrisGame:
                 lines_cleared += 1
         return lines_cleared
 
+    def draw_grid(self):
+        for i in range(GRID_HEIGHT):
+            for j in range(GRID_WIDTH):
+                pygame.draw.rect(self.screen, self.grid[i][j],
+                                 (j * BLOCK_SIZE, i * BLOCK_SIZE, BLOCK_SIZE - 1, BLOCK_SIZE - 1))
+
+    def draw_piece(self, piece):
+        for i, row in enumerate(piece.shape):
+            for j, cell in enumerate(row):
+                if cell:
+                    pygame.draw.rect(self.screen, piece.color,
+                                     ((piece.x + j) * BLOCK_SIZE, (piece.y + i) * BLOCK_SIZE,
+                                      BLOCK_SIZE - 1, BLOCK_SIZE - 1))
+
+    def draw_score(self):
+        score_text = self.font.render(f"Score: {self.score}", True, WHITE)
+        self.screen.blit(score_text, (GRID_WIDTH * BLOCK_SIZE + 10, 10))
+
+    
 
 
 
